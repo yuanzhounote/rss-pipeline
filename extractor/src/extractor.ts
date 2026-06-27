@@ -6,7 +6,6 @@ import TurndownService from 'turndown';
 interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_KEY: string;
-  IMAGES: R2Bucket;
 }
 
 interface QueueMessage {
@@ -137,6 +136,7 @@ export default {
             cover: result.cover,
             content_html: result.content_html,
             content_md: result.content_md,
+            published_at: result.published_at?.toISOString() || new Date().toISOString(),
             status: 'ready',
             updated_at: new Date().toISOString(),
           })
@@ -156,7 +156,12 @@ export default {
           })
           .eq('id', articleId);
         
-        message.retry();
+        const attempts = (message as any).attempts ?? 1;
+        if (attempts >= 3) {
+          message.ack();
+        } else {
+          message.retry();
+        }
       }
     }
   },

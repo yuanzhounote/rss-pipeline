@@ -1,15 +1,12 @@
 name = "rss-pipeline-extractor"
 main = "src/extractor.ts"
 compatibility_date = "2026-06-27"
+compatibility_flags = ["nodejs_compat"]
 
 [[queues.consumers]]
 queue = "article-extraction-queue"
 max_batch_size = 10
 max_batch_timeout = 30
-
-[[r2_buckets]]
-binding = "IMAGES"
-bucket_name = "rss-images"
 
 [vars]
 SUPABASE_URL = ""

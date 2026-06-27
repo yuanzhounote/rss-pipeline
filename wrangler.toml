@@ -1,8 +1,10 @@
 name = "rss-pipeline-api"
 main = "src/index.ts"
 compatibility_date = "2026-06-27"
+compatibility_flags = ["nodejs_compat"]
 
 [[queues.producers]]
+binding = "QUEUE"
 queue = "article-extraction-queue"
 
 [vars]

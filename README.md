@@ -1,6 +1,6 @@
 # RSS 信息管道
 
-将 Telegram/飞书消息中的链接自动抓取、解析并生成 RSS 供阅读器订阅。
+将飞书消息中的链接自动抓取、解析并生成 RSS 供阅读器订阅。
 
 ## 架构
 
@@ -89,16 +89,24 @@ wrangler deploy
 ```text
 rss-pipeline/
 ├── src/
-│   └── index.ts          # API Gateway Worker
+│   └── index.ts              # API Gateway Worker
 ├── extractor/
+│   ├── package.json          # Extractor 依赖
+│   ├── wrangler.toml         # Extractor Worker 配置
 │   └── src/
-│       └── extractor.ts  # Extractor Worker
+│       └── extractor.ts      # Queue Consumer + 解析器
 ├── sql/
 │   └── create_articles_table.sql
-├── wrangler.toml         # API Worker 配置
-├── extractor/
-│   └── wrangler.toml     # Extractor Worker 配置
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── ROADMAP.md
+│   ├── ISSUES/
+│   └── PROMPTS/
 ├── .env.example
+├── .gitignore
+├── package.json
+├── tsconfig.json
+├── wrangler.toml             # API Worker 配置
 └── README.md
 ```
 
@@ -107,7 +115,7 @@ rss-pipeline/
 1. 填写 `.env` 环境变量
 2. 本地开发：`wrangler dev`
 3. 部署：`wrangler deploy`
-4. 测试：发送链接给 Telegram Bot，检查 `/rss.xml` 输出
+4. 测试：在飞书群发链接，检查 `/rss.xml` 输出
 
 ## Roadmap
 

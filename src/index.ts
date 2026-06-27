@@ -107,7 +107,7 @@ async function handleFeishuWebhook(request: Request, env: Env): Promise<Response
   }
   
   // 验证token（Verification Token方式）
-  if (body.header && body.header.token) {
+  if (body.header && body.header.token && env.FEISHU_VERIFICATION_TOKEN) {
     if (body.header.token !== env.FEISHU_VERIFICATION_TOKEN) {
       return new Response('Forbidden', { status: 403 });
     }
