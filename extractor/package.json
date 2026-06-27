@@ -1,0 +1,22 @@
+{
+  "name": "rss-pipeline-extractor",
+  "version": "1.0.0",
+  "description": "Extractor Worker for RSS Pipeline",
+  "main": "src/extractor.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "jsdom": "^29.1.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260627.1",
+    "@types/jsdom": "^28.0.3",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.105.0"
+  }
+}

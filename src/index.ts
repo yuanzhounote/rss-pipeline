@@ -41,11 +41,23 @@ export default {
       return handleRSS(env);
     }
     
+    if (request.method === 'GET' && url.pathname === '/health') {
+      return new Response(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    
     return new Response('Not Found', { status: 404 });
   },
 };
 
 async function handleTelegramWebhook(request: Request, env: Env): Promise<Response> {
+  // 验证 Telegram Webhook
+  const secretToken = request.headers.get('X-Telegram-Bot-Api-Secret-Token');
+  if (secretToken !== env.TELEGRAM_BOT_TOKEN) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  
   const body = await request.json() as any;
   
   // 提取消息中的URL

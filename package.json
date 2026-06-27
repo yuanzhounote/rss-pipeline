@@ -4,6 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev:api": "wrangler dev",
+    "dev:extractor": "cd extractor && wrangler dev",
+    "deploy:api": "wrangler deploy",
+    "deploy:extractor": "cd extractor && wrangler deploy",
+    "typecheck": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -26,6 +31,8 @@
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "@supabase/supabase-js": "^2.108.2",
-    "jsdom": "^29.1.1"
+    "@types/turndown": "^5.0.6",
+    "jsdom": "^29.1.1",
+    "turndown": "^7.2.4"
   }
 }

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
+import TurndownService from 'turndown';
 
 interface Env {
   SUPABASE_URL: string;
@@ -51,25 +52,37 @@ const genericParser: ArticleParser = {
       .map(img => img.src)
       .filter(src => src.startsWith('http'));
     
-    const contentMd = article.content
-      .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
-      .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
-      .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
-      .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]+>/g, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    // 提取发布时间
+    let publishedAt = new Date();
+    const metaTime = dom.window.document.querySelector('meta[property="article:published_time"]')
+      || dom.window.document.querySelector('meta[name="pubdate"]')
+      || dom.window.document.querySelector('meta[name="date"]');
+    if (metaTime) {
+      const content = metaTime.getAttribute('content');
+      if (content) publishedAt = new Date(content);
+    } else {
+      const timeElement = dom.window.document.querySelector('time[datetime]');
+      if (timeElement) {
+        const datetime = timeElement.getAttribute('datetime');
+        if (datetime) publishedAt = new Date(datetime);
+      }
+    }
+    
+    const turndownService = new TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced',
+    });
+    const contentMd = turndownService.turndown(article.content || '');
     
     return {
       title: article.title || 'Untitled',
       author: article.byline || undefined,
       summary: article.excerpt || undefined,
       cover: images[0] || undefined,
-      content_html: article.content,
+      content_html: article.content || '',
       content_md: contentMd,
       images,
-      published_at: new Date(),
+      published_at: publishedAt,
     };
   },
 };
@@ -91,7 +104,8 @@ export default {
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
     
     for (const message of batch.messages) {
-      const { articleId, sourceUrl } = message.body;
+      const body = message.body as any;
+      const { articleId, sourceUrl } = body;
       
       try {
         // 更新状态为extracting
@@ -137,7 +151,7 @@ export default {
           .from('articles')
           .update({
             status: 'failed',
-            error: error.message,
+            error: (error as Error).message,
             updated_at: new Date().toISOString(),
           })
           .eq('id', articleId);
