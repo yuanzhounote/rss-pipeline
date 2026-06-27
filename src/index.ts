@@ -1,12 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
+import { Queue } from '@cloudflare/workers-types';
 
 interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_KEY: string;
   TELEGRAM_BOT_TOKEN: string;
   R2_PUBLIC_URL: string;
+  QUEUE: Queue;
 }
 
 interface Article {
@@ -78,32 +80,17 @@ async function handleTelegramWebhook(request: Request, env: Env): Promise<Respon
     return new Response(`Database error: ${error.message}`, { status: 500 });
   }
   
-  // 这里应该发送消息到Cloudflare Queue，但MVP先同步解析
-  // 直接调用解析函数
+  // 发送消息到 Queue
   try {
-    const article = await extractArticle(sourceUrl);
-    // 更新文章记录
-    const { error: updateError } = await supabase
+    await env.QUEUE.send({ articleId: data.id, sourceUrl });
+    // 更新状态为 queued
+    await supabase
       .from('articles')
-      .update({
-        title: article.title,
-        author: article.author,
-        summary: article.summary,
-        cover: article.cover,
-        content_html: article.content_html,
-        content_md: article.content_md,
-        status: 'ready',
-        updated_at: new Date().toISOString(),
-      })
+      .update({ status: 'queued', updated_at: new Date().toISOString() })
       .eq('id', data.id);
-    
-    if (updateError) {
-      return new Response(`Update error: ${updateError.message}`, { status: 500 });
-    }
-    
     return new Response('已加入处理队列');
   } catch (err: any) {
-    // 更新状态为failed
+    // 更新状态为 failed
     await supabase
       .from('articles')
       .update({
@@ -112,52 +99,11 @@ async function handleTelegramWebhook(request: Request, env: Env): Promise<Respon
         updated_at: new Date().toISOString(),
       })
       .eq('id', data.id);
-    
-    return new Response(`Extraction failed: ${err.message}`, { status: 500 });
+    return new Response(`Queue error: ${err.message}`, { status: 500 });
   }
 }
 
-async function extractArticle(url: string) {
-  // 获取网页内容
-  const response = await fetch(url);
-  const html = await response.text();
-  
-  // 使用JSDOM和Readability解析
-  const dom = new JSDOM(html, { url });
-  const reader = new Readability(dom.window.document);
-  const article = reader.parse();
-  
-  if (!article) {
-    throw new Error('Failed to parse article');
-  }
-  
-  // 提取图片（简单实现）
-  const images = Array.from(dom.window.document.querySelectorAll('img'))
-    .map((img: HTMLImageElement) => img.src)
-    .filter(src => src.startsWith('http'));
-  
-  // 简单的HTML转Markdown（生产环境应使用专门的库）
-  const contentMd = (article.content || '')
-    .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
-    .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
-    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
-    .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-  
-  return {
-    title: article.title || 'Untitled',
-    author: article.byline || undefined,
-    summary: article.excerpt || undefined,
-    cover: images[0] || undefined,
-    content_html: article.content,
-    content_md: contentMd,
-    images,
-    published_at: new Date(),
-  };
-}
+
 
 async function handleRSS(env: Env): Promise<Response> {
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
