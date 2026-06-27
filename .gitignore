@@ -1,1 +1,4 @@
-node_modules/\n.wrangler/\n.env
+node_modules/
+.wrangler/
+.env
+.DS_Store
