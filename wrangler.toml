@@ -1,0 +1,13 @@
+name = "rss-pipeline-api"
+main = "src/index.ts"
+compatibility_date = "2026-06-27"
+
+[[queues.producers]]
+queue = "article-extraction-queue"
+
+[vars]
+SUPABASE_URL = ""
+SUPABASE_SERVICE_KEY = ""
+TELEGRAM_BOT_TOKEN = ""
+R2_PUBLIC_URL = ""
+env_file = ".env"
