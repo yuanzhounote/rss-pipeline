@@ -8,8 +8,6 @@ queue = "article-extraction-queue"
 [vars]
 SUPABASE_URL = ""
 SUPABASE_SERVICE_KEY = ""
-TELEGRAM_BOT_TOKEN = ""
-R2_PUBLIC_URL = ""
 FEISHU_APP_ID = ""
 FEISHU_APP_SECRET = ""
 FEISHU_VERIFICATION_TOKEN = ""

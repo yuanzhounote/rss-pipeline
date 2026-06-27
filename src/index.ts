@@ -6,8 +6,6 @@ import { Queue } from '@cloudflare/workers-types';
 interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_KEY: string;
-  TELEGRAM_BOT_TOKEN: string;
-  R2_PUBLIC_URL: string;
   QUEUE: Queue;
   FEISHU_APP_ID: string;
   FEISHU_APP_SECRET: string;
@@ -37,9 +35,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     
-    if (request.method === 'POST' && url.pathname === '/webhook/telegram') {
-      return handleTelegramWebhook(request, env);
-    }
+
     
     if (request.method === 'POST' && url.pathname === '/webhook/feishu') {
       return handleFeishuWebhook(request, env);
@@ -99,39 +95,6 @@ async function enqueueArticle(env: Env, sourceUrl: string, sourceType: string): 
   
   return { id: data.id, status: 'queued' };
 }
-
-async function handleTelegramWebhook(request: Request, env: Env): Promise<Response> {
-  // 验证 Telegram Webhook
-  const secretToken = request.headers.get('X-Telegram-Bot-Api-Secret-Token');
-  if (secretToken !== env.TELEGRAM_BOT_TOKEN) {
-    return new Response('Forbidden', { status: 403 });
-  }
-  
-  const body = await request.json() as any;
-  
-  // 提取消息中的URL
-  const message = body.message;
-  if (!message || !message.text) {
-    return new Response('No text in message');
-  }
-  
-  const text = message.text;
-  const urlMatch = text.match(/https?:\/\/[^\s]+/);
-  if (!urlMatch) {
-    return new Response('No URL found in message');
-  }
-  
-  const sourceUrl = urlMatch[0];
-  
-  try {
-    const result = await enqueueArticle(env, sourceUrl, 'telegram');
-    return new Response('已加入处理队列');
-  } catch (err: any) {
-    return new Response(`Error: ${err.message}`, { status: 500 });
-  }
-}
-
-
 
 async function handleFeishuWebhook(request: Request, env: Env): Promise<Response> {
   const body = await request.json() as any;

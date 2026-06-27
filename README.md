@@ -5,7 +5,7 @@
 ## 架构
 
 ```text
-Telegram
+飞书
     │
     ▼
 Cloudflare Worker (API Gateway)
@@ -43,8 +43,6 @@ ReadYou / RSS 阅读器
 ```bash
 SUPABASE_URL=your_supabase_url
 SUPABASE_SERVICE_KEY=your_supabase_service_key
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-R2_PUBLIC_URL=your_r2_public_url
 FEISHU_APP_ID=your_feishu_app_id
 FEISHU_APP_SECRET=your_feishu_app_secret
 FEISHU_VERIFICATION_TOKEN=your_feishu_verification_token
@@ -76,13 +74,7 @@ cd extractor
 wrangler deploy
 ```
 
-### 5. 配置 Telegram Webhook
 
-将 Telegram Bot 的 Webhook 设置为：
-
-```
-https://<your-api-worker>.workers.dev/webhook/telegram
-```
 
 ### 6. 配置飞书 Webhook
 
