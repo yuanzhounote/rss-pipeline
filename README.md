@@ -45,6 +45,10 @@ SUPABASE_URL=your_supabase_url
 SUPABASE_SERVICE_KEY=your_supabase_service_key
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 R2_PUBLIC_URL=your_r2_public_url
+FEISHU_APP_ID=your_feishu_app_id
+FEISHU_APP_SECRET=your_feishu_app_secret
+FEISHU_VERIFICATION_TOKEN=your_feishu_verification_token
+FEISHU_ENCRYPT_KEY=your_feishu_encrypt_key (可选)
 ```
 
 ## 部署
@@ -80,6 +84,14 @@ wrangler deploy
 https://<your-api-worker>.workers.dev/webhook/telegram
 ```
 
+### 6. 配置飞书 Webhook
+
+1. 在飞书开放平台创建应用并启用机器人
+2. 订阅事件 `im.message.receive_v1`
+3. 请求地址填：`https://<your-api-worker>.workers.dev/webhook/feishu`
+4. 配置权限：`im:chat:readonly`、`im:message:send`、`im:message.group_msg`
+5. 将机器人拉入目标群聊
+
 ## 目录结构
 
 ```text
@@ -112,4 +124,4 @@ rss-pipeline/
 - [ ] Phase 3: 插件化解析器 (WeChat, Zhihu, etc.)
 - [ ] Phase 4: 图片懒缓存 (R2)
 - [ ] Phase 5: 完整线上部署
-- [ ] Phase 6: 飞书机器人支持
+- [x] Phase 6: 飞书机器人支持

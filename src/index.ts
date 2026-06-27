@@ -9,6 +9,10 @@ interface Env {
   TELEGRAM_BOT_TOKEN: string;
   R2_PUBLIC_URL: string;
   QUEUE: Queue;
+  FEISHU_APP_ID: string;
+  FEISHU_APP_SECRET: string;
+  FEISHU_VERIFICATION_TOKEN: string;
+  FEISHU_ENCRYPT_KEY: string;
 }
 
 interface Article {
@@ -37,6 +41,10 @@ export default {
       return handleTelegramWebhook(request, env);
     }
     
+    if (request.method === 'POST' && url.pathname === '/webhook/feishu') {
+      return handleFeishuWebhook(request, env);
+    }
+    
     if (request.method === 'GET' && url.pathname === '/rss.xml') {
       return handleRSS(env);
     }
@@ -50,6 +58,47 @@ export default {
     return new Response('Not Found', { status: 404 });
   },
 };
+
+async function enqueueArticle(env: Env, sourceUrl: string, sourceType: string): Promise<{ id: number; status: string }> {
+  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
+  
+  // 检查URL是否已存在（去重）
+  const { data: existing } = await supabase
+    .from('articles')
+    .select('id, status')
+    .eq('source_url', sourceUrl)
+    .single();
+  
+  if (existing) {
+    return { id: existing.id, status: existing.status };
+  }
+  
+  // 插入文章记录，状态为pending
+  const { data, error } = await supabase
+    .from('articles')
+    .insert({
+      source_url: sourceUrl,
+      source_type: sourceType,
+      status: 'pending',
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    throw new Error(`Database error: ${error.message}`);
+  }
+  
+  // 发送消息到 Queue
+  await env.QUEUE.send({ articleId: data.id, sourceUrl });
+  
+  // 更新状态为 queued
+  await supabase
+    .from('articles')
+    .update({ status: 'queued', updated_at: new Date().toISOString() })
+    .eq('id', data.id);
+  
+  return { id: data.id, status: 'queued' };
+}
 
 async function handleTelegramWebhook(request: Request, env: Env): Promise<Response> {
   // 验证 Telegram Webhook
@@ -74,48 +123,62 @@ async function handleTelegramWebhook(request: Request, env: Env): Promise<Respon
   
   const sourceUrl = urlMatch[0];
   
-  // 初始化Supabase客户端
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
-  
-  // 插入文章记录，状态为pending
-  const { data, error } = await supabase
-    .from('articles')
-    .insert({
-      source_url: sourceUrl,
-      source_type: 'generic', // 初始为通用，后续可识别
-      status: 'pending',
-    })
-    .select()
-    .single();
-  
-  if (error) {
-    return new Response(`Database error: ${error.message}`, { status: 500 });
-  }
-  
-  // 发送消息到 Queue
   try {
-    await env.QUEUE.send({ articleId: data.id, sourceUrl });
-    // 更新状态为 queued
-    await supabase
-      .from('articles')
-      .update({ status: 'queued', updated_at: new Date().toISOString() })
-      .eq('id', data.id);
+    const result = await enqueueArticle(env, sourceUrl, 'telegram');
     return new Response('已加入处理队列');
   } catch (err: any) {
-    // 更新状态为 failed
-    await supabase
-      .from('articles')
-      .update({
-        status: 'failed',
-        error: err.message,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', data.id);
-    return new Response(`Queue error: ${err.message}`, { status: 500 });
+    return new Response(`Error: ${err.message}`, { status: 500 });
   }
 }
 
 
+
+async function handleFeishuWebhook(request: Request, env: Env): Promise<Response> {
+  const body = await request.json() as any;
+  
+  // 处理飞书URL验证挑战（首次配置事件订阅时）
+  if (body.challenge) {
+    return new Response(JSON.stringify({ challenge: body.challenge }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  
+  // 验证token（Verification Token方式）
+  if (body.header && body.header.token) {
+    if (body.header.token !== env.FEISHU_VERIFICATION_TOKEN) {
+      return new Response('Forbidden', { status: 403 });
+    }
+  }
+  
+  // 确保是消息接收事件
+  if (!body.event || !body.event.message || body.event.message.message_type !== 'text') {
+    return new Response('Not a text message');
+  }
+  
+  // 提取消息内容
+  let text = '';
+  try {
+    const content = JSON.parse(body.event.message.content);
+    text = content.text || '';
+  } catch (e) {
+    return new Response('Invalid message content');
+  }
+  
+  // 提取URL
+  const urlMatch = text.match(/https?:\/\/[^\s]+/);
+  if (!urlMatch) {
+    return new Response('No URL found in message');
+  }
+  
+  const sourceUrl = urlMatch[0];
+  
+  try {
+    const result = await enqueueArticle(env, sourceUrl, 'feishu');
+    return new Response('已加入处理队列');
+  } catch (err: any) {
+    return new Response(`Error: ${err.message}`, { status: 500 });
+  }
+}
 
 async function handleRSS(env: Env): Promise<Response> {
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
