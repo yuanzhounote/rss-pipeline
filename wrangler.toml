@@ -8,11 +8,7 @@ binding = "QUEUE"
 queue = "article-extraction-queue"
 
 [vars]
-SUPABASE_URL = ""
-SUPABASE_SERVICE_KEY = ""
-FEISHU_APP_ID = ""
-FEISHU_APP_SECRET = ""
-FEISHU_VERIFICATION_TOKEN = ""
-FEISHU_ENCRYPT_KEY = ""
+# 敏感凭据（SUPABASE_* / FEISHU_*）通过 wrangler secret put 注入，不在此声明
+# 以下为非敏感公开配置
 SITE_TITLE = "RSS Pipeline"
 SITE_URL = "https://rss-pipeline-api.wx-yyyz-ai.workers.dev"
