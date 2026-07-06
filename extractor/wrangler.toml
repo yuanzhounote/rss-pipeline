@@ -7,6 +7,8 @@ compatibility_flags = ["nodejs_compat"]
 queue = "article-extraction-queue"
 max_batch_size = 10
 max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "article-extraction-dlq"
 
 # 敏感凭据通过 wrangler secret put 注入，不在此声明
 # [vars] 暂无非敏感配置

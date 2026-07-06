@@ -145,19 +145,21 @@ export default {
         message.ack();
       } catch (error) {
         console.error(`Failed to extract article ${articleId}:`, error);
-        
-        // 更新状态为failed
-        await supabase
-          .from('articles')
-          .update({
-            status: 'failed',
-            error: (error as Error).message,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', articleId);
-        
+
         const attempts = (message as any).attempts ?? 1;
+
+        // 仅在确认不再重试（达到最大重试次数）时才标记 failed。
+        // 否则先 retry()，下一次投递进来会由第一行 update 改回 extracting，
+        // 避免状态在 failed / extracting 间跳动造成误判。
         if (attempts >= 3) {
+          await supabase
+            .from('articles')
+            .update({
+              status: 'failed',
+              error: (error as Error).message,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', articleId);
           message.ack();
         } else {
           message.retry();
