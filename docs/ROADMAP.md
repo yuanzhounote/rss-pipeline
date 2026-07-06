@@ -41,11 +41,11 @@
 
 | 任务 | 状态 | 说明 |
 |---|---|---|
-| `<guid>` 使用文章 id 而非 source_url | ❌ 未做 | 避免 URL 变化导致重复 |
-| `<author>` 格式规范 | ❌ 未做 | RSS 规范要求 email 或 `name (email)` |
-| `<enclosure>` MIME 类型按实际判断 | ❌ 未做 | 当前硬编码 `image/jpeg` |
-| RSS channel 标题/链接可配置 | ❌ 未做 | 当前硬编码 `example.com` |
-| 重复链接去重 | ❌ 未做 | 同一 URL 多次发送只保留一条 |
+| `<guid>` 使用文章 id 而非 source_url | ✅ 完成 | 避免 URL 变化导致重复 |
+| `<author>` 格式规范 | ✅ 完成 | 改用 `<dc:creator>` |
+| `<enclosure>` MIME 类型按实际判断 | ✅ 完成 | 按扩展名匹配 |
+| RSS channel 标题/链接可配置 | ✅ 完成 | `SITE_TITLE` / `SITE_URL` 环境变量 |
+| 重复链接去重 | ✅ 完成 | `maybeSingle()` + 数据库唯一约束 |
 | RSS 缓存策略优化 | ❌ 未做 | 当前 `max-age=300`，可按需调整 |
 
 **验收标准**：
