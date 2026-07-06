@@ -50,6 +50,11 @@ export default {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    // TEMPORARY: 重新投递卡在 queued 的遗留消息（验证 Extractor 后删除）
+    if (request.method === 'POST' && url.pathname === '/admin/requeue') {
+      return handleRequeue(env);
+    }
     
     return new Response('Not Found', { status: 404 });
   },
@@ -156,6 +161,30 @@ async function handleFeishuWebhook(request: Request, env: Env): Promise<Response
   } catch (err: any) {
     return new Response(`Error: ${err.message}`, { status: 500 });
   }
+}
+
+// TEMPORARY: 重新投递所有 status='queued' 的文章到队列（验证 Extractor 后删除）
+async function handleRequeue(env: Env): Promise<Response> {
+  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
+
+  const { data: articles, error } = await supabase
+    .from('articles')
+    .select('id, source_url')
+    .eq('status', 'queued');
+
+  if (error) {
+    return new Response(`Database error: ${error.message}`, { status: 500 });
+  }
+
+  let sent = 0;
+  for (const a of articles || []) {
+    await env.QUEUE.send({ articleId: a.id, sourceUrl: a.source_url });
+    sent++;
+  }
+
+  return new Response(JSON.stringify({ requeued: sent }), {
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
 
 async function handleRSS(env: Env): Promise<Response> {
