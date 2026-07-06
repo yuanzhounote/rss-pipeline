@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { Readability } from '@mozilla/readability';
-import { JSDOM } from 'jsdom';
+import { parseHTML } from 'linkedom';
 import TurndownService from 'turndown';
 
 interface Env {
@@ -39,28 +39,28 @@ const genericParser: ArticleParser = {
     const response = await fetch(url);
     const html = await response.text();
     
-    const dom = new JSDOM(html, { url });
-    const reader = new Readability(dom.window.document);
+    const { document } = parseHTML(html, { url });
+    const reader = new Readability(document);
     const article = reader.parse();
     
     if (!article) {
       throw new Error('Failed to parse article');
     }
     
-    const images = Array.from(dom.window.document.querySelectorAll('img'))
-      .map(img => img.src)
+    const images = (Array.from(document.querySelectorAll('img')) as any[])
+      .map((img: any) => img.src)
       .filter(src => src.startsWith('http'));
     
     // 提取发布时间
     let publishedAt = new Date();
-    const metaTime = dom.window.document.querySelector('meta[property="article:published_time"]')
-      || dom.window.document.querySelector('meta[name="pubdate"]')
-      || dom.window.document.querySelector('meta[name="date"]');
+    const metaTime = document.querySelector('meta[property="article:published_time"]')
+      || document.querySelector('meta[name="pubdate"]')
+      || document.querySelector('meta[name="date"]');
     if (metaTime) {
       const content = metaTime.getAttribute('content');
       if (content) publishedAt = new Date(content);
     } else {
-      const timeElement = dom.window.document.querySelector('time[datetime]');
+      const timeElement = document.querySelector('time[datetime]');
       if (timeElement) {
         const datetime = timeElement.getAttribute('datetime');
         if (datetime) publishedAt = new Date(datetime);
