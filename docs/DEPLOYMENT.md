@@ -31,10 +31,12 @@ npx wrangler secret put SUPABASE_SERVICE_KEY
 cd ..
 npx wrangler secret put SUPABASE_URL
 npx wrangler secret put SUPABASE_SERVICE_KEY
-npx wrangler secret put FEISHU_APP_ID
-npx wrangler secret put FEISHU_APP_SECRET
+# Webhook 校验当前只用 VERIFICATION_TOKEN（代码未实现消息解密，故加密务必关闭）
 npx wrangler secret put FEISHU_VERIFICATION_TOKEN
-npx wrangler secret put FEISHU_ENCRYPT_KEY
+# 以下两项代码暂未使用，可先不设；待后续让机器人主动回消息时再补
+# npx wrangler secret put FEISHU_APP_ID
+# npx wrangler secret put FEISHU_APP_SECRET
+# ⚠️ 不要启用事件加密，也不要设置 FEISHU_ENCRYPT_KEY，否则消息无法解析
 ```
 
 ---
@@ -71,11 +73,14 @@ npx wrangler deploy
 
 ## 5. 配置飞书群机器人 Webhook
 
-1. 飞书开放平台 → 创建企业自建应用 / 配置事件订阅
-2. 请求地址填：`https://<your-worker>/feishu/webhook`
-3. Verification Token / Encrypt Key 与第 1 步 secret **严格一致**
-4. 订阅「消息」事件（接收群聊里发出的链接）
-5. 验证 URL：飞书会发 `url_verification` challenge，代码已处理返回 `challenge`
+1. 飞书开放平台（open.feishu.cn）→ 创建 **企业自建应用**
+2. 左侧「机器人」开启机器人能力，并把该机器人**加入目标飞书群**
+3. 左侧「事件订阅」→ 请求地址填：`https://<your-domain>/webhook/feishu`
+   （注意路径是 `/webhook/feishu`，不是 `/feishu/webhook`）
+4. 在「事件订阅」中勾选 **接收消息** 事件（`im.message.receive_v1`）
+5. Verification Token 与第 1 步 `FEISHU_VERIFICATION_TOKEN` secret **严格一致**
+6. **不要启用消息加密**（代码未实现解密，启用后无法解析）
+7. 验证 URL：飞书会发 `url_verification` challenge，代码已处理返回 `challenge`
 
 ---
 
@@ -103,4 +108,4 @@ node test-flow.mjs
 - [ ] R2 图片托管（`IMAGES` binding）
 - [ ] 监控告警 + 失败文章重跑后台
 - [ ] 多解析器（公众号 / 知乎 / 微博 专用 parser）
-- [ ] `enqueueArticle` 失败兜底（目前发送失败会停在 `pending`，需加 try/catch 区分返回）
+- [x] `enqueueArticle` 失败兜底（已修复：QUEUE.send 失败标记 `failed` 并返回真实结果，commit `7c384ca`）
