@@ -84,15 +84,27 @@ async function enqueueArticle(env: Env, sourceUrl: string, sourceType: string): 
     throw new Error(`Database error: ${error.message}`);
   }
   
-  // 发送消息到 Queue
-  await env.QUEUE.send({ articleId: data.id, sourceUrl });
-  
+  // 发送消息到 Queue；失败则标记 failed，避免文章永远卡在 pending
+  try {
+    await env.QUEUE.send({ articleId: data.id, sourceUrl });
+  } catch (err: any) {
+    await supabase
+      .from('articles')
+      .update({
+        status: 'failed',
+        error: `Queue error: ${err.message}`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', data.id);
+    return { id: data.id, status: 'failed' };
+  }
+
   // 更新状态为 queued
   await supabase
     .from('articles')
     .update({ status: 'queued', updated_at: new Date().toISOString() })
     .eq('id', data.id);
-  
+
   return { id: data.id, status: 'queued' };
 }
 
@@ -137,6 +149,9 @@ async function handleFeishuWebhook(request: Request, env: Env): Promise<Response
   
   try {
     const result = await enqueueArticle(env, sourceUrl, 'feishu');
+    if (result.status === 'failed') {
+      return new Response('加入队列失败，请稍后重试', { status: 500 });
+    }
     return new Response('已加入处理队列');
   } catch (err: any) {
     return new Response(`Error: ${err.message}`, { status: 500 });
