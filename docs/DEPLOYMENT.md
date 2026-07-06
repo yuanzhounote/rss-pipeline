@@ -73,14 +73,23 @@ npx wrangler deploy
 
 ## 5. 配置飞书群机器人 Webhook
 
-1. 飞书开放平台（open.feishu.cn）→ 创建 **企业自建应用**
-2. 左侧「机器人」开启机器人能力，并把该机器人**加入目标飞书群**
-3. 左侧「事件订阅」→ 请求地址填：`https://<your-domain>/webhook/feishu`
+> 前提：需有一个可公网访问的地址（自定义域名，见下文）。`workers.dev` 国内不可达，飞书回调会超时，**必须先绑自定义域名**再配此步。
+
+1. 飞书开放平台（open.feishu.cn）→ 登录企业账号 → **创建企业自建应用**，填名称（如「RSS 链接收集器」）、描述、图标
+2. 左侧「凭证与基础信息」→ 复制 **App ID** / **App Secret**（代码暂未用到，先记下）
+3. 左侧「权限管理」→ 搜索并开通 **`im:message`**（读取消息）权限，保存
+4. 左侧「机器人」→ 开通机器人能力（应用才能作为机器人进群收消息）
+5. 左侧「事件订阅」→ 请求地址填：`https://<your-domain>/webhook/feishu`
    （注意路径是 `/webhook/feishu`，不是 `/feishu/webhook`）
-4. 在「事件订阅」中勾选 **接收消息** 事件（`im.message.receive_v1`）
-5. Verification Token 与第 1 步 `FEISHU_VERIFICATION_TOKEN` secret **严格一致**
-6. **不要启用消息加密**（代码未实现解密，启用后无法解析）
-7. 验证 URL：飞书会发 `url_verification` challenge，代码已处理返回 `challenge`
+6. 同一页点「添加事件」→ 勾选 **接收消息 v2.0**（`im.message.receive_v1`）
+7. 复制本页的 **Verification Token**（即 `FEISHU_VERIFICATION_TOKEN` 的值）
+8. **不要启用消息加密**（代码未实现解密，启用后无法解析，也不要设 `FEISHU_ENCRYPT_KEY`）
+9. 保存后飞书会立刻发 `url_verification` 挑战到你的 Worker，代码已处理返回 `challenge`，页面显示「已验证」即成功
+10. 左侧「版本管理与发布」→ 创建版本 → 申请发布（不发布则机器人加不进群、事件不生效；需企业管理员审批的走审批）
+11. 飞书里把该机器人**加入目标群**：群设置 → 添加机器人 → 选此应用
+12. 在群里发一条带 URL 的**文本**消息，机器人捕获链接 → 入库 → 解析 → `/rss.xml` 出现条目
+
+> ⚠️ 第 1/3/4/10 步任一遗漏都会导致收不到消息；若验证 URL 失败，优先排查：域名可达性、路径是否 `/webhook/feishu`、Worker 是否已部署。
 
 ---
 
