@@ -9,6 +9,7 @@ interface Env {
   FEISHU_APP_SECRET: string;
   FEISHU_VERIFICATION_TOKEN: string;
   FEISHU_ENCRYPT_KEY: string;
+  ADMIN_SECRET: string;
   SITE_TITLE: string;
   SITE_URL: string;
 }
@@ -52,7 +53,11 @@ export default {
     }
 
     // TEMPORARY: 重新投递卡在 queued 的遗留消息（验证 Extractor 后删除）
+    // 鉴权：必须携带 X-Admin-Token 头，值等于 ADMIN_SECRET；验证完立即删除整个路由
     if (request.method === 'POST' && url.pathname === '/admin/requeue') {
+      if (request.headers.get('X-Admin-Token') !== env.ADMIN_SECRET) {
+        return new Response('Unauthorized', { status: 401 });
+      }
       return handleRequeue(env);
     }
     
