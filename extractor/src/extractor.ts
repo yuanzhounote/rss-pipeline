@@ -99,6 +99,17 @@ function getParserForUrl(url: string): ArticleParser {
 }
 
 export default {
+  // TEMPORARY: 健康检查端点（验证 Extractor Worker 是否存活后删除）
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === '/health') {
+      return new Response(JSON.stringify({ status: 'ok', worker: 'extractor' }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return new Response('Not Found', { status: 404 });
+  },
+
   async queue(batch: MessageBatch<QueueMessage>, env: Env): Promise<void> {
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
     
