@@ -51,42 +51,66 @@ export default {
       });
     }
 
+    // 临时入队端点（测试用）
+    if (request.method === 'POST' && url.pathname === '/admin/enqueue') {
+      return handleEnqueue(request, env);
+    }
+
     return new Response('Not Found', { status: 404 });
   },
 };
 
 async function enqueueArticle(env: Env, sourceUrl: string, sourceType: string): Promise<{ id: number; status: string }> {
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
-  
+
   // 检查URL是否已存在（去重）
   const { data: existing } = await supabase
     .from('articles')
     .select('id, status')
     .eq('source_url', sourceUrl)
     .maybeSingle();
-  
+
   if (existing) {
-    return { id: existing.id, status: existing.status };
+    // 如果之前失败了，允许重新入队
+    if (existing.status === 'failed') {
+      await supabase
+        .from('articles')
+        .update({
+          status: 'pending',
+          error: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id);
+    } else {
+      return { id: existing.id, status: existing.status };
+    }
   }
-  
-  // 插入文章记录，状态为pending
-  const { data, error } = await supabase
-    .from('articles')
-    .insert({
-      source_url: sourceUrl,
-      source_type: sourceType,
-      status: 'pending',
-    })
-    .select()
-    .single();
-  
-  if (error) {
-    throw new Error(`Database error: ${error.message}`);
+
+  let articleId: number;
+
+  // 插入文章记录（如果不存在），状态为pending
+  if (!existing) {
+    const { data, error } = await supabase
+      .from('articles')
+      .insert({
+        source_url: sourceUrl,
+        source_type: sourceType,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Database error: ${error.message}`);
+    }
+    articleId = data.id;
+  } else {
+    articleId = existing.id;
   }
-  
+
   // 发送消息到 Queue；失败则标记 failed，避免文章永远卡在 pending
   try {
-    await env.QUEUE.send({ articleId: data.id, sourceUrl });
+    await env.QUEUE.send({ articleId, sourceUrl });
   } catch (err: any) {
     await supabase
       .from('articles')
@@ -95,17 +119,17 @@ async function enqueueArticle(env: Env, sourceUrl: string, sourceType: string): 
         error: `Queue error: ${err.message}`,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', data.id);
-    return { id: data.id, status: 'failed' };
+      .eq('id', articleId);
+    return { id: articleId, status: 'failed' };
   }
 
   // 更新状态为 queued
   await supabase
     .from('articles')
     .update({ status: 'queued', updated_at: new Date().toISOString() })
-    .eq('id', data.id);
+    .eq('id', articleId);
 
-  return { id: data.id, status: 'queued' };
+  return { id: articleId, status: 'queued' };
 }
 
 async function handleFeishuWebhook(request: Request, env: Env): Promise<Response> {
@@ -242,4 +266,23 @@ function getMimeFromUrl(url?: string): string {
     avif: 'image/avif',
   };
   return mimeMap[ext] || 'image/jpeg';
+}
+
+async function handleEnqueue(request: Request, env: Env): Promise<Response> {
+  const body = await request.json() as any;
+  const sourceUrl = body.url;
+  const sourceType = body.source_type || 'manual';
+
+  if (!sourceUrl) {
+    return new Response('Missing url', { status: 400 });
+  }
+
+  try {
+    const result = await enqueueArticle(env, sourceUrl, sourceType);
+    return new Response(JSON.stringify(result), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err: any) {
+    return new Response(`Error: ${err.message}`, { status: 500 });
+  }
 }
