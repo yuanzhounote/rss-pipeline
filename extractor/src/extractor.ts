@@ -94,16 +94,6 @@ function getParserForUrl(url: string): ArticleParser {
 }
 
 export default {
-  async fetch(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-    if (url.pathname === '/health') {
-      return new Response(JSON.stringify({ status: 'ok', worker: 'extractor' }), {
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    return new Response('Not Found', { status: 404 });
-  },
-
   async queue(batch: MessageBatch<QueueMessage>, env: Env): Promise<void> {
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
     

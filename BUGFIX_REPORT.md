@@ -26,6 +26,8 @@ Cloudflare Workers 运行时缺少完整的 DOM 环境：
 | id=7 | 微信公众号 | ✅ ready |
 | id=4 | 微信公众号 | ✅ ready |
 
+> 注：另有 id=3（The Cloudflare Blog）在本次修复前已为 ready，未计入上表。本次修复实际覆盖 4 篇（id=4/5/6/7）此前卡在 queued 的文章。线上 /rss.xml 当前共 5 条 ready 条目（含 id=3）。
+
 ## DLQ Config
 - max_retries: 3
 - dead_letter_queue: article-extraction-dlq

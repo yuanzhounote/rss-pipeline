@@ -9,7 +9,6 @@ interface Env {
   FEISHU_APP_SECRET: string;
   FEISHU_VERIFICATION_TOKEN: string;
   FEISHU_ENCRYPT_KEY: string;
-  ADMIN_SECRET: string;
   SITE_TITLE: string;
   SITE_URL: string;
 }
