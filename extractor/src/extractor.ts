@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Readability } from '@mozilla/readability';
 import { parseHTML } from 'linkedom';
-import TurndownService from 'turndown';
+import { NodeHtmlMarkdown } from 'node-html-markdown';
 
 interface Env {
   SUPABASE_URL: string;
@@ -31,7 +31,6 @@ interface ArticleParser {
   }>;
 }
 
-// 通用解析器
 const genericParser: ArticleParser = {
   name: 'generic',
   canHandle: () => true,
@@ -40,18 +39,18 @@ const genericParser: ArticleParser = {
     const html = await response.text();
     
     const { document } = parseHTML(html, { url });
+    
     const reader = new Readability(document);
     const article = reader.parse();
     
     if (!article) {
-      throw new Error('Failed to parse article');
+      throw new Error('Readability returned null');
     }
     
     const images = (Array.from(document.querySelectorAll('img')) as any[])
       .map((img: any) => img.src)
       .filter(src => src.startsWith('http'));
     
-    // 提取发布时间
     let publishedAt = new Date();
     const metaTime = document.querySelector('meta[property="article:published_time"]')
       || document.querySelector('meta[name="pubdate"]')
@@ -67,11 +66,7 @@ const genericParser: ArticleParser = {
       }
     }
     
-    const turndownService = new TurndownService({
-      headingStyle: 'atx',
-      codeBlockStyle: 'fenced',
-    });
-    const contentMd = turndownService.turndown(article.content || '');
+    const contentMd = nhm.translate(article.content || '');
     
     return {
       title: article.title || 'Untitled',
@@ -86,8 +81,8 @@ const genericParser: ArticleParser = {
   },
 };
 
-// 解析器列表
 const parsers: ArticleParser[] = [genericParser];
+const nhm = new NodeHtmlMarkdown();
 
 function getParserForUrl(url: string): ArticleParser {
   for (const parser of parsers) {
@@ -99,7 +94,6 @@ function getParserForUrl(url: string): ArticleParser {
 }
 
 export default {
-  // TEMPORARY: 健康检查端点（验证 Extractor Worker 是否存活后删除）
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/health') {
@@ -118,26 +112,19 @@ export default {
       const { articleId, sourceUrl } = body;
       
       try {
-        // 更新状态为extracting
         await supabase
           .from('articles')
           .update({ status: 'extracting', updated_at: new Date().toISOString() })
           .eq('id', articleId);
         
-        // 获取合适的解析器
         const parser = getParserForUrl(sourceUrl);
-        
-        // 解析文章
         const result = await parser.extract(sourceUrl);
         
-        // 更新状态为uploading
         await supabase
           .from('articles')
           .update({ status: 'uploading', updated_at: new Date().toISOString() })
           .eq('id', articleId);
         
-        // 这里应该处理图片上传到R2，但MVP先跳过
-        // 直接更新为ready状态
         await supabase
           .from('articles')
           .update({
@@ -159,9 +146,6 @@ export default {
 
         const attempts = (message as any).attempts ?? 1;
 
-        // 仅在确认不再重试（达到最大重试次数）时才标记 failed。
-        // 否则先 retry()，下一次投递进来会由第一行 update 改回 extracting，
-        // 避免状态在 failed / extracting 间跳动造成误判。
         if (attempts >= 3) {
           await supabase
             .from('articles')

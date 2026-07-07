@@ -11,12 +11,11 @@
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "@supabase/supabase-js": "^2.108.2",
-    "linkedom": "^0.18.12",
-    "turndown": "^7.2.4"
+    "linkedom": "^0.18.6",
+    "node-html-markdown": "^2.0.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260627.1",
-    "@types/turndown": "^5.0.6",
     "typescript": "^6.0.3",
     "wrangler": "^4.105.0"
   }
