@@ -6,3 +6,4 @@ node_modules/
 test-flow.mjs
 test-flow.cjs
 test-rss.xml
+rss-pipeline aichat/
