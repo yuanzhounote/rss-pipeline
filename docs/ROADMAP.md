@@ -1,12 +1,16 @@
 # ROADMAP.md — RSS Pipeline 版本路线图
 
-> 最后更新：2026-06-27
+> 最后更新：2026-07-07
 
 ---
 
 ## 当前状态
 
-**Phase 1 骨架已完成**，4 个已知 bug 已修复。尚未进行线上部署和端到端测试。
+**Phase 1 已全部完成并上线**：代码侧 4 个已知 bug 已修、`/rss.xml` 输出完善、队列卡死根因已修（Turndown→node-html-markdown + linkedom，commit `25be203`）；双 Worker 已部署、自定义域名 `rss.yuanzhounote.com` 实测可达、端到端验证通过（5 篇文章 `ready`）。
+
+**当前仅剩两块未闭环**：① 飞书控制台事件订阅配置（代码已就绪，需用户本机操作）② 监控/告警（仅 `/health` 端点存在，无定时巡检与告警）。
+
+**Phase 2（RSS 输出）已完成**；Phase 3/4/6 待开始。
 
 ---
 
@@ -18,20 +22,21 @@
 |---|---|---|
 | API Worker webhook 接收 + URL 提取 | ✅ 完成 | 含飞书 token 验证 |
 | API Worker 写入 Supabase + 发 Queue | ✅ 完成 | `pending → queued` |
-| Extractor 消费 Queue + 解析正文 | ✅ 完成 | Readability + Turndown |
+| Extractor 消费 Queue + 解析正文 | ✅ 完成 | Readability + node-html-markdown（原 Turndown 在 Workers 抛 `document is not defined`，已替换，commit `25be203`） |
 | Extractor 状态机流转 | ✅ 完成 | `queued → extracting → uploading → ready` |
 | `GET /rss.xml` 实时生成 RSS | ✅ 完成 | RSS 2.0，含 content:encoded |
 | `GET /health` 健康检查 | ✅ 完成 | |
 | 修复 extractor/package.json 缺 turndown 依赖 | ✅ 完成 | Issue #1 |
 | 修复 Extractor 漏写 published_at | ✅ 完成 | Issue #2 |
 | 修复 message.retry() 无限重试 | ✅ 完成 | Issue #3 |
-| 本地端到端测试 | ❌ 未做 | |
-| 线上部署 | ❌ 未做 | |
+| 本地端到端测试 | ✅ 完成 | 2026-07-07 线上验证，5 篇文章 `ready`（id=4/5/6/7 为微信/httpbin） |
+| 线上部署 | ✅ 完成 | 双 Worker 已部署 + 自定义域名 `rss.yuanzhounote.com` 可达 |
 
 **验收标准**：
 - 向飞书群发送一个普通网页链接
 - 30 秒内 `/rss.xml` 出现该文章
-- 文章标题、正文、发布时间正确
+- 文章正文、发布时间正确
+- ⚠️ 已知质量缺口：Readability 对部分站点（含微信公众号/httpbin）抽不到标题，落库 `title=Untitled`；Phase 3 需加站点专用 parser 或 og:title 回退
 
 ---
 
@@ -57,6 +62,8 @@
 ## Phase 3：插件化解析器
 
 **目标**：针对特殊来源（微信、知乎等）有专用解析器，提高正文提取成功率。
+
+> 现状：当前通用 Readability + node-html-markdown 已能抽取微信公众号/httpbin 正文（2026-07-07 验证），但**标题抽不到**（落库 `Untitled`）。专用 parser 优先解决标题 + 懒加载图片（`data-src`）。
 
 | 任务 | 状态 | 说明 |
 |---|---|---|
@@ -100,25 +107,28 @@
 |---|---|---|
 | Supabase 项目创建 + 执行 SQL | ✅ 完成 | 已在 Supabase 控制台执行 |
 | Cloudflare Queue 创建 | ✅ 完成 | `article-extraction-queue` 已创建 |
-| R2 Bucket 创建 | ⏸️ 跳过 | Cloudflare 账户未启用 R2，后续再开 |
-| API Worker 部署 | ✅ 完成 | `https://rss-pipeline-api.wx-yyz-ai.workers.dev` |
-| Extractor Worker 部署 | ❌ 待做 | 需单独部署 |
-| 飞书 Webhook 配置 | ❌ 待做 | 见下方操作清单 |
-| 密钥管理 | ✅ 完成 | 已用 `wrangler secret` 设置 |
-| 监控 + 告警 | ❌ 待做 | `/health` + Cloudflare Analytics |
-| 错误日志查看 | ❌ 待做 | `wrangler tail` |
+| R2 Bucket 创建 | ⏸️ 跳过 | MVP 决议跳过图片托管（Phase 4 暂缓）；`IMAGES` binding 未配 |
+| API Worker 部署 | ✅ 完成 | 自定义域 `rss.yuanzhounote.com`（已验证可达）/ `*.workers.dev` 备用 |
+| Extractor Worker 部署 | ✅ 完成 | commit `25be203` 已部署，`rss-pipeline-extractor` |
+| 飞书 Webhook 配置 | ❌ 待做 | **代码已就绪，仅差飞书控制台配置（需用户本机操作）**，见下方清单 |
+| 密钥管理 | ✅ 完成 | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` 已注入；`FEISHU_VERIFICATION_TOKEN` 待设 |
+| 监控 + 告警 | ⚠️ 部分 | API Worker `/health` 端点存在（`src/index.ts`），但无定时巡检 / Cloudflare Analytics 告警 / DLQ 告警 |
+| 错误日志查看 | ❌ 待做 | 未建立 `wrangler tail` 巡检习惯 |
 
-### 飞书 Webhook 配置清单（下周做）
+### 飞书 Webhook 配置清单（待做 — 需用户本机飞书控制台操作，AI 无法代登）
+
+> 完整步骤见 `docs/DEPLOYMENT.md` 第 5 步。以下为要点：
 
 1. 打开飞书开放平台 → 进入你的应用
-2. **事件与回调** → **事件配置**
-3. 请求地址填：`https://rss-pipeline-api.wx-yyz-ai.workers.dev/webhook/feishu`
-4. 添加事件：`im.message.receive_v1`（接收消息）
-5. 权限配置：`im:chat:readonly`、`im:message:send`、`im:message.group_msg`
-6. 把机器人拉进目标群聊
-7. 在群里发一个链接，等 30 秒后检查 `/rss.xml`
+2. **事件订阅** → 请求地址填：`https://rss.yuanzhounote.com/webhook/feishu`
+   （⚠️ 必须用自定义域名：`*.workers.dev` 国内不可达，飞书回调会超时；路径是 `/webhook/feishu` 不是 `/feishu/webhook`）
+3. 添加事件：`im.message.receive_v1`（接收消息）
+4. 开通权限：`im:message`（读取消息；机器人主动发消息暂未用到 APP_ID/APP_SECRET）
+5. **关闭消息加密**（代码未实现解密，启用后无法解析；不要设 `FEISHU_ENCRYPT_KEY`）
+6. 本机执行 `wrangler secret put FEISHU_VERIFICATION_TOKEN`（值取自飞书 Verification Token）
+7. 把机器人拉进目标群聊，群里发链接 → 30 秒后 `/rss.xml` 出现条目即成功
 
-### Extractor Worker 部署清单
+### Extractor Worker 部署清单（已完成，2026-07-07）
 
 ```bash
 cd extractor
@@ -127,6 +137,8 @@ wrangler secret put SUPABASE_URL      # 输入 .env 中的值
 wrangler secret put SUPABASE_SERVICE_KEY
 wrangler deploy
 ```
+
+> 以上步骤已于 2026-07-07 执行，Extractor 已上线。后续仅依赖代码改动后重新 `wrangler deploy`。
 
 **验收标准**：
 - 连续 7 天稳定运行，无未处理的 `failed` 状态文章
