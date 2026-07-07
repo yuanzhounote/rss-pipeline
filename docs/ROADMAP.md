@@ -67,9 +67,9 @@
 
 | 任务 | 状态 | 说明 |
 |---|---|---|
-| 解析器目录拆分到 `extractor/src/parsers/` | ✅ 完成 | `wechat.ts`, `zhihu.ts`, `juejin.ts`, `generic.ts`, `index.ts` |
+| 解析器目录拆分到 `extractor/src/parsers/` | ✅ 完成 | `wechat.ts`, `juejin.ts`, `generic.ts`, `index.ts` |
 | 微信公众号解析器 | ✅ 完成 | 处理 `mp.weixin.qq.com`，直接提取 `#js_content` |
-| 知乎专栏解析器 | ✅ 完成 | 处理 `zhuanlan.zhihu.com`/`www.zhihu.com`，支持 `data-actual-src` 懒加载图片替换 |
+| 知乎专栏解析器 | ❌ 已移除 | 知乎有严格的反爬机制（`zh-zse-ck` JS 校验），Workers 环境无法绕过 |
 | 掘金解析器 | ✅ 完成 | 处理 `juejin.cn`，支持 `data-src` 懒加载图片替换 |
 | 解析器自动匹配（URL 模式） | ✅ 完成 | `getParserForUrl()` 按 `canHandle(url)` 优先级匹配 |
 | 三级降级策略 | ✅ 完成 | 专用解析器 → `genericParser`（Readability 兜底） |

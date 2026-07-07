@@ -51,11 +51,6 @@ export default {
       });
     }
 
-    // 临时入队端点（测试用）
-    if (request.method === 'POST' && url.pathname === '/admin/enqueue') {
-      return handleEnqueue(request, env);
-    }
-
     return new Response('Not Found', { status: 404 });
   },
 };
@@ -268,21 +263,3 @@ function getMimeFromUrl(url?: string): string {
   return mimeMap[ext] || 'image/jpeg';
 }
 
-async function handleEnqueue(request: Request, env: Env): Promise<Response> {
-  const body = await request.json() as any;
-  const sourceUrl = body.url;
-  const sourceType = body.source_type || 'manual';
-
-  if (!sourceUrl) {
-    return new Response('Missing url', { status: 400 });
-  }
-
-  try {
-    const result = await enqueueArticle(env, sourceUrl, sourceType);
-    return new Response(JSON.stringify(result), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (err: any) {
-    return new Response(`Error: ${err.message}`, { status: 500 });
-  }
-}
