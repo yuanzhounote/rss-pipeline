@@ -1,4 +1,3 @@
-import { Readability } from '@mozilla/readability';
 import { parseHTML } from 'linkedom';
 import { NodeHtmlMarkdown } from 'node-html-markdown';
 import type { ArticleParser } from './types';
@@ -97,17 +96,11 @@ export const wechatParser: ArticleParser = {
     }
 
     // 4. 正文提取
+    // 微信文章直接用 #js_content，Readability 对微信移动版结构容易误判
     let contentHtml = '';
     let summary: string | undefined;
 
-    const reader = new Readability(document);
-    const article = reader.parse();
-
-    if (article && article.content && article.content.length > 200) {
-      contentHtml = article.content;
-      summary = article.excerpt || undefined;
-    } else if (jsContent) {
-      // Readability 抽得太少，回退到微信正文区
+    if (jsContent) {
       contentHtml = jsContent.innerHTML || '';
       const text = (jsContent.textContent || '').trim().slice(0, 200);
       if (text.length > 50) {

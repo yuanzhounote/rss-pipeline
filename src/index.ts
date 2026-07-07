@@ -179,7 +179,7 @@ async function handleRSS(env: Env): Promise<Response> {
   return new Response(rss, {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=300',
+      'Cache-Control': 'public, max-age=60',
     },
   });
 }
