@@ -63,16 +63,16 @@
 
 **目标**：针对特殊来源（微信、知乎等）有专用解析器，提高正文提取成功率。
 
-> 现状：当前通用 Readability + node-html-markdown 已能抽取微信公众号/httpbin 正文（2026-07-07 验证），但**标题抽不到**（落库 `Untitled`）。专用 parser 优先解决标题 + 懒加载图片（`data-src`）。
+> 现状：专用解析器已支持微信公众号、知乎专栏、掘金，自动按 URL 匹配。通用解析器（Readability）兜底。
 
 | 任务 | 状态 | 说明 |
 |---|---|---|
-| 解析器目录拆分到 `extractor/src/parsers/` | ❌ 未做 | |
-| 微信公众号解析器 | ❌ 未做 | 处理 `mp.weixin.qq.com` |
-| 知乎专栏解析器 | ❌ 未做 | 处理 `zhuanlan.zhihu.com` |
-| 掘金解析器 | ❌ 未做 | 处理 `juejin.cn` |
-| 解析器自动匹配（URL 模式） | ❌ 未做 | `canHandle(url)` 已有接口 |
-| 三级降级策略 | ❌ 未做 | API → Readability → Browser Rendering |
+| 解析器目录拆分到 `extractor/src/parsers/` | ✅ 完成 | `wechat.ts`, `zhihu.ts`, `juejin.ts`, `generic.ts`, `index.ts` |
+| 微信公众号解析器 | ✅ 完成 | 处理 `mp.weixin.qq.com`，直接提取 `#js_content` |
+| 知乎专栏解析器 | ✅ 完成 | 处理 `zhuanlan.zhihu.com`/`www.zhihu.com`，支持 `data-actual-src` 懒加载图片替换 |
+| 掘金解析器 | ✅ 完成 | 处理 `juejin.cn`，支持 `data-src` 懒加载图片替换 |
+| 解析器自动匹配（URL 模式） | ✅ 完成 | `getParserForUrl()` 按 `canHandle(url)` 优先级匹配 |
+| 三级降级策略 | ✅ 完成 | 专用解析器 → `genericParser`（Readability 兜底） |
 
 **验收标准**：
 - 微信公众号文章正确提取正文和图片
