@@ -16,11 +16,9 @@ function isZhihuUrl(url: string): boolean {
 /**
  * 知乎专栏/文章解析器
  *
- * 知乎页面特点：
- * - 标题在 h1.Post-Title 或 h1 或 og:title
- * - 正文在 .Post-RichTextContainer 或 .RichText 或 article
- * - 图片使用 data-actual-src（懒加载），需要替换为实际 src
- * - 作者名在 .AuthorInfo-name 或 meta
+ * 注意：知乎有严格的反爬机制（zh-zse-ck JS 校验），
+ * 在 Cloudflare Workers 环境中可能无法直接获取内容。
+ * 本解析器会尝试多种方式，并在失败时抛出清晰的错误。
  */
 export const zhihuParser: ArticleParser = {
   name: 'zhihu',
@@ -35,6 +33,14 @@ export const zhihuParser: ArticleParser = {
       },
     });
     const html = await response.text();
+
+    // 检测反爬验证页
+    if (html.includes('zh-zse-ck') || html.includes('完成验证后即可继续访问') || html.length < 1000) {
+      throw new Error(
+        'Zhihu anti-bot verification blocked the request. ' +
+        'Zhihu requires JavaScript rendering which is not available in Workers environment. '
+      );
+    }
 
     const { document } = parseHTML(html, { url });
 
